@@ -3,6 +3,7 @@ data/
 __pycache__/
 *.pyc
 .DS_Store
+node_modules/
 web/node_modules/
 web/.next/
 web/.env.local
