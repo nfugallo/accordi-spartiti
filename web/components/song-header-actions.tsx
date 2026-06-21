@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { exportSongAsText } from "@/lib/export-sheet";
+import { shareUrl } from "@/lib/share-url";
 import { useFavorites } from "./favorites-provider";
 import { useSongPageRequired } from "./song-page-provider";
 
@@ -34,10 +36,28 @@ function ActionButton({
 export function SongHeaderActions() {
   const { song, settings } = useSongPageRequired();
   const { toggleFavorite, isFavorite } = useFavorites();
+  const [shareLabel, setShareLabel] = useState("Share");
+  const shareResetRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const href = `/song/${song.slug}`;
   const favorited = isFavorite("song", href);
   const effectiveTranspose = settings.transpose - settings.capo;
+
+  useEffect(() => {
+    return () => {
+      if (shareResetRef.current) {
+        clearTimeout(shareResetRef.current);
+      }
+    };
+  }, []);
+
+  const flashShareLabel = (label: string) => {
+    if (shareResetRef.current) {
+      clearTimeout(shareResetRef.current);
+    }
+    setShareLabel(label);
+    shareResetRef.current = setTimeout(() => setShareLabel("Share"), 2000);
+  };
 
   const handleCopy = async () => {
     const text = exportSongAsText(song, effectiveTranspose);
@@ -49,11 +69,15 @@ export function SongHeaderActions() {
   };
 
   const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      await navigator.share({ title: song.title, url });
-    } else {
-      await navigator.clipboard.writeText(url);
+    const result = await shareUrl({
+      title: song.title,
+      url: window.location.href,
+    });
+
+    if (result === "copied") {
+      flashShareLabel("Link copied!");
+    } else if (result === "failed") {
+      flashShareLabel("Couldn't share");
     }
   };
 
@@ -66,7 +90,7 @@ export function SongHeaderActions() {
         Print
       </ActionButton>
       <ActionButton label="Share link" onClick={handleShare}>
-        Share
+        {shareLabel}
       </ActionButton>
       <ActionButton
         label={favorited ? "Remove favorite" : "Add favorite"}
