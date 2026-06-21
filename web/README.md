@@ -38,6 +38,14 @@ Optional: set `NEXT_PUBLIC_SITE_URL` in `.env.local` for canonical URLs and site
 
 4. **After re-crawling** — re-import to Turso and rebuild FTS.
 
+## Performance (scales with catalog size)
+
+- **Search (browser):** build emits sharded static files under `public/search/` (max ~2,500 entries per shard; splits automatically as the catalog grows). Only relevant shards load per query.
+- **Search (fallback):** `/api/search` uses SQLite FTS on Turso — works for any catalog size and handles edge cases the client shards may miss.
+- **Pages:** song/artist data is cached at the edge for 24h (`revalidate`); DB queries run in parallel.
+
+Set Vercel **Root Directory** to `web`.
+
 ## Routes
 
 | Path | Description |

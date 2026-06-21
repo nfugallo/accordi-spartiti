@@ -10,6 +10,8 @@ import type {
   Stanza,
   StanzaType,
 } from "./types";
+import { unstable_cache } from "next/cache";
+import { cache } from "react";
 
 function escapeFtsQuery(query: string): string {
   const cleaned = query
@@ -36,7 +38,7 @@ function mapArtistRow(row: Record<string, unknown>): ArtistRef {
   };
 }
 
-export async function searchCatalog(query: string): Promise<SearchResult[]> {
+async function fetchSearchCatalog(query: string): Promise<SearchResult[]> {
   const ftsQuery = escapeFtsQuery(query);
   if (!ftsQuery) {
     return [];
@@ -81,7 +83,7 @@ export async function searchCatalog(query: string): Promise<SearchResult[]> {
   });
 }
 
-export async function getSongBySlug(slug: string): Promise<SongDetail | null> {
+async function fetchSongBySlug(slug: string): Promise<SongDetail | null> {
   const db = getDb();
 
   const { rows: songRows } = await db.execute({
@@ -101,56 +103,60 @@ export async function getSongBySlug(slug: string): Promise<SongDetail | null> {
   const song = songRows[0];
   const songId = Number(song.id);
 
-  const { rows: artistRows } = await db.execute({
-    sql: `
-      SELECT a.name, a.slug, a.region
-      FROM artists a
-      JOIN song_artists sa ON sa.artist_id = a.id
-      WHERE sa.song_id = ?
-      ORDER BY a.name
-    `,
-    args: [songId],
-  });
+  const [artistResult, sectionResult, stanzaResult, chordLineResult] = await Promise.all([
+    db.execute({
+      sql: `
+        SELECT a.name, a.slug, a.region
+        FROM artists a
+        JOIN song_artists sa ON sa.artist_id = a.id
+        WHERE sa.song_id = ?
+        ORDER BY a.name
+      `,
+      args: [songId],
+    }),
+    db.execute({
+      sql: `
+        SELECT section_index, key_signature
+        FROM song_sections
+        WHERE song_id = ?
+        ORDER BY section_index
+      `,
+      args: [songId],
+    }),
+    db.execute({
+      sql: `
+        SELECT
+          st.section_index,
+          st.stanza_index,
+          st.stanza_type,
+          st.lyric,
+          st.id AS stanza_id
+        FROM stanzas st
+        WHERE st.song_id = ?
+        ORDER BY st.section_index, st.stanza_index
+      `,
+      args: [songId],
+    }),
+    db.execute({
+      sql: `
+        SELECT
+          st.section_index,
+          st.stanza_index,
+          cl.line_index,
+          cl.raw_line
+        FROM chord_lines cl
+        JOIN stanzas st ON st.id = cl.stanza_id
+        WHERE st.song_id = ?
+        ORDER BY st.section_index, st.stanza_index, cl.line_index
+      `,
+      args: [songId],
+    }),
+  ]);
 
-  const { rows: sectionRows } = await db.execute({
-    sql: `
-      SELECT section_index, key_signature
-      FROM song_sections
-      WHERE song_id = ?
-      ORDER BY section_index
-    `,
-    args: [songId],
-  });
-
-  const { rows: stanzaRows } = await db.execute({
-    sql: `
-      SELECT
-        st.section_index,
-        st.stanza_index,
-        st.stanza_type,
-        st.lyric,
-        st.id AS stanza_id
-      FROM stanzas st
-      WHERE st.song_id = ?
-      ORDER BY st.section_index, st.stanza_index
-    `,
-    args: [songId],
-  });
-
-  const { rows: chordLineRows } = await db.execute({
-    sql: `
-      SELECT
-        st.section_index,
-        st.stanza_index,
-        cl.line_index,
-        cl.raw_line
-      FROM chord_lines cl
-      JOIN stanzas st ON st.id = cl.stanza_id
-      WHERE st.song_id = ?
-      ORDER BY st.section_index, st.stanza_index, cl.line_index
-    `,
-    args: [songId],
-  });
+  const artistRows = artistResult.rows;
+  const sectionRows = sectionResult.rows;
+  const stanzaRows = stanzaResult.rows;
+  const chordLineRows = chordLineResult.rows;
 
   const chordLinesByStanza = new Map<string, { lineIndex: number; rawLine: string }[]>();
   for (const row of chordLineRows) {
@@ -197,7 +203,7 @@ export async function getSongBySlug(slug: string): Promise<SongDetail | null> {
   };
 }
 
-export async function getRelatedSongs(songId: number, limit = 5): Promise<SongSummary[]> {
+async function fetchRelatedSongs(songId: number, limit = 5): Promise<SongSummary[]> {
   const db = getDb();
   const { rows } = await db.execute({
     sql: `
@@ -275,7 +281,7 @@ export async function countArtists(): Promise<number> {
   return Number(rows[0].count);
 }
 
-export async function getArtistSongs(
+async function fetchArtistSongs(
   region: string,
   slug: string,
 ): Promise<{ name: string; displayName: string; songs: SongSummary[] } | null> {
@@ -332,7 +338,7 @@ function regionLabel(slug: string): string {
   return REGION_LABELS[slug] ?? slug.replace(/-/g, " ");
 }
 
-export async function getRegions(): Promise<RegionSummary[]> {
+async function fetchRegions(): Promise<RegionSummary[]> {
   const db = getDb();
   const { rows } = await db.execute(`
     SELECT region, COUNT(*) AS artist_count
@@ -348,7 +354,7 @@ export async function getRegions(): Promise<RegionSummary[]> {
   }));
 }
 
-export async function getArtistsByRegion(region: string): Promise<ArtistSummary[]> {
+async function fetchArtistsByRegion(region: string): Promise<ArtistSummary[]> {
   const db = getDb();
   const { rows } = await db.execute({
     sql: `
@@ -373,3 +379,44 @@ export async function getArtistsByRegion(region: string): Promise<ArtistSummary[
     };
   });
 }
+
+const DAY = 86_400;
+
+export const getSongBySlug = cache((slug: string) =>
+  unstable_cache(() => fetchSongBySlug(slug), ["song", slug], {
+    revalidate: DAY,
+    tags: ["songs", `song:${slug}`],
+  })(),
+);
+
+export const getRelatedSongs = cache((songId: number, limit = 5) =>
+  unstable_cache(() => fetchRelatedSongs(songId, limit), ["related", String(songId), String(limit)], {
+    revalidate: DAY,
+    tags: ["songs"],
+  })(),
+);
+
+export const getArtistSongs = cache((region: string, slug: string) =>
+  unstable_cache(() => fetchArtistSongs(region, slug), ["artist", region, slug], {
+    revalidate: DAY,
+    tags: ["artists", `artist:${region}:${slug}`],
+  })(),
+);
+
+export const getRegions = cache(() =>
+  unstable_cache(fetchRegions, ["regions"], { revalidate: DAY, tags: ["regions"] })(),
+);
+
+export const getArtistsByRegion = cache((region: string) =>
+  unstable_cache(() => fetchArtistsByRegion(region), ["artists-by-region", region], {
+    revalidate: DAY,
+    tags: ["artists", `region:${region}`],
+  })(),
+);
+
+export const searchCatalog = cache((query: string) =>
+  unstable_cache(() => fetchSearchCatalog(query), ["search", query], {
+    revalidate: 3600,
+    tags: ["search"],
+  })(),
+);

@@ -8,6 +8,8 @@ type PageProps = {
   params: Promise<{ slug: string }>;
 };
 
+export const revalidate = 86_400;
+
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { slug } = await params;
   const song = await getSongBySlug(slug);

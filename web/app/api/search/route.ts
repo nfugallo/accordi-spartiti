@@ -10,5 +10,9 @@ export async function GET(request: Request) {
   }
 
   const results = await searchCatalog(query);
-  return NextResponse.json(results);
+  return NextResponse.json(results, {
+    headers: {
+      "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",
+    },
+  });
 }

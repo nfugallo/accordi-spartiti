@@ -1,4 +1,12 @@
+import { formatArtistDisplayName } from "../lib/artist-name";
+import {
+  buildAdaptiveShards,
+  MAX_SHARD_ENTRIES,
+  type CatalogEntry,
+  type SearchManifest,
+} from "../lib/catalog-search";
 import { createClient } from "@libsql/client";
+import { mkdirSync, writeFileSync } from "fs";
 import path from "path";
 
 function getDatabaseUrl(): string {
@@ -61,6 +69,63 @@ async function main() {
 
   const total = await client.execute("SELECT COUNT(*) AS c FROM search_fts");
   console.log(`Done. ${total.rows[0].c} total searchable entries.`);
+
+  console.log("Exporting sharded client search catalog...");
+  const { rows } = await client.execute(`
+    SELECT entity_type, title, artist_names, slug, region
+    FROM search_fts
+    ORDER BY entity_type, title COLLATE NOCASE
+  `);
+
+  const catalog: CatalogEntry[] = rows.map((row) => {
+    const type = String(row.entity_type);
+    const title = String(row.title);
+    const slug = String(row.slug);
+    const region = row.region ? String(row.region) : "";
+    const artistNames = row.artist_names ? String(row.artist_names) : "";
+
+    if (type === "artist") {
+      return {
+        t: formatArtistDisplayName(title),
+        u: region,
+        h: `/artist/${region}/${slug}`,
+        k: "a",
+      };
+    }
+
+    return {
+      t: title,
+      u: artistNames || region,
+      h: `/song/${slug}`,
+      k: "s",
+    };
+  });
+
+  const shards = buildAdaptiveShards(catalog);
+  const shardDir = path.resolve(process.cwd(), "public", "search", "shards");
+  mkdirSync(shardDir, { recursive: true });
+
+  const shardIds = Object.keys(shards).sort();
+  for (const shardId of shardIds) {
+    writeFileSync(path.join(shardDir, `${shardId}.json`), JSON.stringify(shards[shardId]));
+  }
+
+  const manifest: SearchManifest = {
+    version: 2,
+    total: catalog.length,
+    maxShardEntries: MAX_SHARD_ENTRIES,
+    shards: shardIds,
+  };
+
+  writeFileSync(
+    path.resolve(process.cwd(), "public", "search", "manifest.json"),
+    JSON.stringify(manifest),
+  );
+
+  const largest = Math.max(...Object.values(shards).map((group) => group.length));
+  console.log(
+    `Wrote ${shardIds.length} shards (${catalog.length} entries, largest shard ${largest}).`,
+  );
 }
 
 main().catch((error) => {

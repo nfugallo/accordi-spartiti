@@ -11,6 +11,28 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "coverartarchive.org" },
     ],
   },
+  async headers() {
+    return [
+      {
+        source: "/search/manifest.json",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+      {
+        source: "/search/shards/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
+          },
+        ],
+      },
+    ];
+  },
 };
 
 export default nextConfig;

@@ -1,6 +1,7 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import { preloadSearchCatalog } from "@/lib/catalog-search";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
 type SearchContextValue = {
   open: boolean;
@@ -13,6 +14,10 @@ const SearchContext = createContext<SearchContextValue | null>(null);
 
 export function SearchProvider({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
+
+  useEffect(() => {
+    preloadSearchCatalog();
+  }, []);
 
   const openSearch = useCallback(() => setOpen(true), []);
   const closeSearch = useCallback(() => setOpen(false), []);

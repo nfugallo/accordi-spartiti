@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { useFavorites } from "./favorites-provider";
 import { useSearch } from "./search-provider";
+import { searchCatalogClient } from "@/lib/catalog-search";
 import type { SearchResult } from "@/lib/types";
 
 export function CommandMenu() {
@@ -49,6 +50,14 @@ export function CommandMenu() {
     const timer = setTimeout(async () => {
       setLoading(true);
       try {
+        const local = await searchCatalogClient(query.trim());
+        if (local !== null) {
+          setResults(local);
+          if (local.length > 0 || query.trim().length < 3) {
+            return;
+          }
+        }
+
         const response = await fetch(
           `/api/search?q=${encodeURIComponent(query.trim())}`,
           { signal: controller.signal },
@@ -68,7 +77,7 @@ export function CommandMenu() {
           setLoading(false);
         }
       }
-    }, 150);
+    }, 80);
 
     return () => {
       controller.abort();
