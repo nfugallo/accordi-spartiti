@@ -14,10 +14,26 @@ import { GuitarDiagram } from "./guitar-diagram";
 const WHITE_KEY_HEIGHT = 52;
 const BLACK_KEY_HEIGHT = 32;
 const FADE_MS = 280;
+const HOVER_CLOSE_MS = 200;
 const POPOVER_MAX_WIDTH = 320;
 const POPOVER_SIDE_MARGIN = 20;
+const ANCHOR_GAP = 14;
 
 type Tab = ChordInstrument;
+
+function useHoverCapable() {
+  const [hoverCapable, setHoverCapable] = useState(false);
+
+  useEffect(() => {
+    const media = window.matchMedia("(hover: hover) and (pointer: fine)");
+    const sync = () => setHoverCapable(media.matches);
+    sync();
+    media.addEventListener("change", sync);
+    return () => media.removeEventListener("change", sync);
+  }, []);
+
+  return hoverCapable;
+}
 
 function isBlackKey(midi: number): boolean {
   return [1, 3, 6, 8, 10].includes(midi % 12);
@@ -121,42 +137,59 @@ type PopoverStyle = {
 export function ChordPopover({ chord }: { chord: string }) {
   const parsed = parseChordToPiano(chord);
   const guitar = getGuitarFingering(chord);
+  const hoverCapable = useHoverCapable();
   const [tab, setTab] = useState<Tab>(() => readChordInstrument());
+  const [hovering, setHovering] = useState(false);
+  const [pinned, setPinned] = useState(false);
   const [visible, setVisible] = useState(false);
   const [shown, setShown] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<PopoverStyle | null>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
+  const popoverRef = useRef<HTMLDivElement>(null);
   const closeTimerRef = useRef<number | null>(null);
   const fadeTimerRef = useRef<number | null>(null);
+  const showGenerationRef = useRef(0);
+  const hasOpenedRef = useRef(false);
 
-  const cancelClose = useCallback(() => {
+  const open = hovering || pinned;
+
+  const cancelHoverClose = useCallback(() => {
     if (closeTimerRef.current !== null) {
       window.clearTimeout(closeTimerRef.current);
       closeTimerRef.current = null;
     }
   }, []);
 
+  const scheduleHoverClose = useCallback(() => {
+    cancelHoverClose();
+    closeTimerRef.current = window.setTimeout(() => {
+      setHovering(false);
+      closeTimerRef.current = null;
+    }, HOVER_CLOSE_MS);
+  }, [cancelHoverClose]);
+
   const show = useCallback(() => {
     if (fadeTimerRef.current !== null) {
       window.clearTimeout(fadeTimerRef.current);
       fadeTimerRef.current = null;
     }
+    const generation = ++showGenerationRef.current;
     setVisible(true);
-    requestAnimationFrame(() => setShown(true));
+    requestAnimationFrame(() => {
+      if (showGenerationRef.current === generation) {
+        setShown(true);
+      }
+    });
   }, []);
 
   const hide = useCallback(() => {
+    showGenerationRef.current += 1;
     setShown(false);
     fadeTimerRef.current = window.setTimeout(() => {
       setVisible(false);
       fadeTimerRef.current = null;
     }, FADE_MS);
   }, []);
-
-  const scheduleClose = useCallback(() => {
-    cancelClose();
-    closeTimerRef.current = window.setTimeout(hide, 150);
-  }, [cancelClose, hide]);
 
   const updatePosition = useCallback(() => {
     const anchor = anchorRef.current;
@@ -173,13 +206,44 @@ export function ChordPopover({ chord }: { chord: string }) {
     const above = rect.top > 200;
     setPopoverStyle({
       left: Math.min(Math.max(anchorCenter, minLeft), maxLeft),
-      top: above ? rect.top - 14 : rect.bottom + 14,
+      top: above ? rect.top - ANCHOR_GAP : rect.bottom + ANCHOR_GAP,
       placement: above ? "above" : "below",
     });
   }, []);
 
   useEffect(() => {
+    if (open) {
+      hasOpenedRef.current = true;
+      updatePosition();
+      show();
+      return;
+    }
+    if (hasOpenedRef.current) {
+      hide();
+    }
+  }, [open, show, hide, updatePosition]);
+
+  useEffect(() => {
+    if (!pinned) {
+      return;
+    }
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node;
+      if (anchorRef.current?.contains(target) || popoverRef.current?.contains(target)) {
+        return;
+      }
+      setPinned(false);
+      setHovering(false);
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [pinned]);
+
+  useEffect(() => {
     return () => {
+      if (closeTimerRef.current !== null) {
+        window.clearTimeout(closeTimerRef.current);
+      }
       if (fadeTimerRef.current !== null) {
         window.clearTimeout(fadeTimerRef.current);
       }
@@ -191,14 +255,22 @@ export function ChordPopover({ chord }: { chord: string }) {
       return;
     }
     updatePosition();
-    const onScroll = () => hide();
+    const onScroll = () => {
+      if (!pinned) {
+        setHovering(false);
+      }
+    };
     window.addEventListener("scroll", onScroll, true);
     window.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("resize", updatePosition);
+    window.visualViewport?.addEventListener("scroll", updatePosition);
     return () => {
       window.removeEventListener("scroll", onScroll, true);
       window.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("resize", updatePosition);
+      window.visualViewport?.removeEventListener("scroll", updatePosition);
     };
-  }, [visible, updatePosition, hide]);
+  }, [visible, pinned, updatePosition]);
 
   if (!parsed) {
     return <span className="font-semibold text-muted-foreground">{chord}</span>;
@@ -213,28 +285,39 @@ export function ChordPopover({ chord }: { chord: string }) {
         ref={anchorRef}
         className="inline"
         onMouseEnter={() => {
-          cancelClose();
+          if (!hoverCapable) {
+            return;
+          }
+          cancelHoverClose();
           updatePosition();
-          show();
+          setHovering(true);
         }}
-        onMouseLeave={scheduleClose}
+        onMouseLeave={() => {
+          if (!hoverCapable || pinned) {
+            return;
+          }
+          scheduleHoverClose();
+        }}
       >
         <button
           type="button"
-          className={`cursor-help font-semibold underline decoration-dotted underline-offset-[3px] transition-colors ${
-            visible
+          className={`touch-manipulation cursor-help font-semibold underline decoration-dotted underline-offset-[3px] transition-colors ${
+            open
               ? "text-foreground decoration-indigo-400/70"
               : "text-muted-foreground decoration-muted-foreground/40 hover:text-foreground"
           }`}
           onClick={() => {
             updatePosition();
-            if (visible) {
-              hide();
-            } else {
-              show();
-            }
+            setPinned((current) => {
+              if (current) {
+                setHovering(false);
+                return false;
+              }
+              cancelHoverClose();
+              return true;
+            });
           }}
-          aria-expanded={visible}
+          aria-expanded={open}
           aria-label={`${chord} chord diagram`}
         >
           {chord}
@@ -246,6 +329,7 @@ export function ChordPopover({ chord }: { chord: string }) {
         typeof document !== "undefined" &&
         createPortal(
           <div
+            ref={popoverRef}
             style={{
               position: "fixed",
               left: popoverStyle.left,
@@ -253,9 +337,22 @@ export function ChordPopover({ chord }: { chord: string }) {
               transform: tooltipTransform,
               zIndex: 60,
               pointerEvents: shown ? "auto" : "none",
+              paddingTop: popoverStyle.placement === "below" ? ANCHOR_GAP : 0,
+              paddingBottom: popoverStyle.placement === "above" ? ANCHOR_GAP : 0,
             }}
-            onMouseEnter={cancelClose}
-            onMouseLeave={scheduleClose}
+            onMouseEnter={() => {
+              if (!hoverCapable) {
+                return;
+              }
+              cancelHoverClose();
+              setHovering(true);
+            }}
+            onMouseLeave={() => {
+              if (!hoverCapable || pinned) {
+                return;
+              }
+              scheduleHoverClose();
+            }}
           >
             <div
               role="tooltip"
