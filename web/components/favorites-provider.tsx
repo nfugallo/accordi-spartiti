@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { readFavorites, toggleFavoriteItem, type FavoriteItem } from "@/lib/favorites";
+import { prefetchFavoriteSongs } from "@/lib/offline-prefetch";
 
 type FavoritesContextValue = {
   favorites: FavoriteItem[];
@@ -20,14 +21,22 @@ type FavoritesContextValue = {
 const FavoritesContext = createContext<FavoritesContextValue | null>(null);
 
 export function FavoritesProvider({ children }: { children: ReactNode }) {
-  const [favorites, setFavorites] = useState<FavoriteItem[]>([]);
+  const [favorites, setFavorites] = useState<FavoriteItem[]>(() => readFavorites());
 
   useEffect(() => {
-    setFavorites(readFavorites());
+    prefetchFavoriteSongs(
+      readFavorites()
+        .filter((item) => item.type === "song")
+        .map((item) => item.slug),
+    );
   }, []);
 
   const toggleFavorite = useCallback((item: Omit<FavoriteItem, "addedAt">) => {
-    setFavorites(toggleFavoriteItem(item));
+    const next = toggleFavoriteItem(item);
+    setFavorites(next);
+    if (item.type === "song") {
+      prefetchFavoriteSongs([item.slug]);
+    }
   }, []);
 
   const isFavorite = useCallback(

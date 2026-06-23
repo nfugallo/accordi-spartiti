@@ -19,6 +19,16 @@ export default function manifest(): MetadataRoute.Manifest {
     lang: "it",
     orientation: "portrait",
     categories: ["music", "entertainment"],
+    shortcuts: [
+      {
+        name: "Favorites",
+        url: "/favorites",
+      },
+      {
+        name: "Offline songs",
+        url: "/offline",
+      },
+    ],
     icons: [
       {
         src: "/icon.svg",
