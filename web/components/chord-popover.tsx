@@ -14,6 +14,8 @@ import { GuitarDiagram } from "./guitar-diagram";
 const WHITE_KEY_HEIGHT = 52;
 const BLACK_KEY_HEIGHT = 32;
 const FADE_MS = 280;
+const POPOVER_MAX_WIDTH = 320;
+const POPOVER_SIDE_MARGIN = 20;
 
 type Tab = ChordInstrument;
 
@@ -119,10 +121,9 @@ type PopoverStyle = {
 export function ChordPopover({ chord }: { chord: string }) {
   const parsed = parseChordToPiano(chord);
   const guitar = getGuitarFingering(chord);
-  const [tab, setTab] = useState<Tab>("piano");
+  const [tab, setTab] = useState<Tab>(() => readChordInstrument());
   const [visible, setVisible] = useState(false);
   const [shown, setShown] = useState(false);
-  const [mounted, setMounted] = useState(false);
   const [popoverStyle, setPopoverStyle] = useState<PopoverStyle | null>(null);
   const anchorRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<number | null>(null);
@@ -163,17 +164,21 @@ export function ChordPopover({ chord }: { chord: string }) {
       return;
     }
     const rect = anchor.getBoundingClientRect();
+    const viewportWidth = window.visualViewport?.width ?? window.innerWidth;
+    const viewportLeft = window.visualViewport?.offsetLeft ?? 0;
+    const popoverWidth = Math.min(viewportWidth - POPOVER_SIDE_MARGIN * 2, POPOVER_MAX_WIDTH);
+    const minLeft = viewportLeft + POPOVER_SIDE_MARGIN + popoverWidth / 2;
+    const maxLeft = viewportLeft + viewportWidth - POPOVER_SIDE_MARGIN - popoverWidth / 2;
+    const anchorCenter = rect.left + rect.width / 2;
     const above = rect.top > 200;
     setPopoverStyle({
-      left: rect.left + rect.width / 2,
+      left: Math.min(Math.max(anchorCenter, minLeft), maxLeft),
       top: above ? rect.top - 14 : rect.bottom + 14,
       placement: above ? "above" : "below",
     });
   }, []);
 
   useEffect(() => {
-    setMounted(true);
-    setTab(readChordInstrument());
     return () => {
       if (fadeTimerRef.current !== null) {
         window.clearTimeout(fadeTimerRef.current);
@@ -236,9 +241,9 @@ export function ChordPopover({ chord }: { chord: string }) {
         </button>
       </span>
 
-      {mounted &&
-        visible &&
+      {visible &&
         popoverStyle &&
+        typeof document !== "undefined" &&
         createPortal(
           <div
             style={{
@@ -254,7 +259,7 @@ export function ChordPopover({ chord }: { chord: string }) {
           >
             <div
               role="tooltip"
-              className={`chord-tooltip w-[min(calc(100vw-2rem),20rem)] rounded-2xl border border-white/30 bg-white/85 px-4 py-4 shadow-xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-neutral-900/85 dark:shadow-black/50 ${
+              className={`chord-tooltip max-h-[min(70dvh,32rem)] w-[min(calc(100vw-2.5rem),20rem)] overflow-y-auto rounded-2xl border border-white/30 bg-white/85 px-4 py-4 shadow-xl shadow-black/10 backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-neutral-900/85 dark:shadow-black/50 ${
                 shown
                   ? "chord-tooltip-visible"
                   : popoverStyle.placement === "above"

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import { parseChordLine } from "@/lib/chord-line";
 import { transposeChordLine, transposeKeyLabel } from "@/lib/chord-transpose";
 import type { DisplayMode, SongSection } from "@/lib/types";
@@ -10,7 +11,7 @@ function ChordLineRow({ rawLine, transpose }: { rawLine: string; transpose: numb
   const segments = parseChordLine(line);
 
   return (
-    <div className="min-h-[1.35em] whitespace-pre font-mono text-sm leading-relaxed">
+    <div className="min-h-[1.35em] whitespace-pre font-mono text-[0.76em] leading-relaxed sm:text-[0.875em]">
       {segments.map((segment, index) =>
         segment.isChord ? (
           <ChordHover key={index} chord={segment.text.trim()} />
@@ -23,9 +24,52 @@ function ChordLineRow({ rawLine, transpose }: { rawLine: string; transpose: numb
 }
 
 function SheetBlock({ children }: { children: React.ReactNode }) {
+  const outerRef = useRef<HTMLDivElement>(null);
+  const innerRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState({ scale: 1, height: 0 });
+
+  useEffect(() => {
+    const outer = outerRef.current;
+    const inner = innerRef.current;
+    if (!outer || !inner) {
+      return;
+    }
+
+    const resize = () => {
+      const availableWidth = outer.clientWidth;
+      const contentWidth = inner.scrollWidth;
+      const nextScale =
+        availableWidth > 0 && contentWidth > availableWidth ? availableWidth / contentWidth : 1;
+
+      setFit({
+        scale: nextScale,
+        height: inner.offsetHeight * nextScale,
+      });
+    };
+
+    resize();
+    const observer = new ResizeObserver(resize);
+    observer.observe(outer);
+    observer.observe(inner);
+    return () => observer.disconnect();
+  }, [children]);
+
   return (
-    <div className="mx-auto w-fit max-w-full">
-      <div className="space-y-1 text-left">{children}</div>
+    <div
+      ref={outerRef}
+      className="mx-auto w-full overflow-visible"
+      style={{ height: fit.height || undefined }}
+    >
+      <div
+        ref={innerRef}
+        className="mx-auto w-fit max-w-none origin-top space-y-1 text-left"
+        style={{
+          transform: `scale(${fit.scale})`,
+          transformOrigin: "top center",
+        }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -45,7 +89,7 @@ export function ChordSheet({
   const showLyrics = displayMode !== "chords";
 
   return (
-    <div className="space-y-10" style={{ fontSize: `${fontScale}rem` }}>
+    <div className="space-y-10 px-1 sm:px-0" style={{ fontSize: `${fontScale}rem` }}>
       {sections.map((section) => (
         <section key={section.sectionIndex}>
           {sections.length > 1 && showChords && (
@@ -63,7 +107,10 @@ export function ChordSheet({
                     return null;
                   }
                   return (
-                    <div key={key} className="whitespace-pre font-mono text-sm leading-relaxed">
+                    <div
+                      key={key}
+                      className="whitespace-pre font-mono text-[0.76em] leading-relaxed sm:text-[0.875em]"
+                    >
                       {stanza.lyric}
                     </div>
                   );
@@ -97,7 +144,7 @@ export function ChordSheet({
                         />
                       ))}
                     {showLyrics && stanza.lyric && (
-                      <div className="whitespace-pre font-mono text-sm leading-relaxed">
+                      <div className="whitespace-pre font-mono text-[0.76em] leading-relaxed sm:text-[0.875em]">
                         {stanza.lyric}
                       </div>
                     )}
