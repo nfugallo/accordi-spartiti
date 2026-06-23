@@ -6,7 +6,7 @@ import {
   listArtistRoutes,
   listSongSlugs,
 } from "@/lib/queries";
-import { getSiteUrl } from "@/lib/seo";
+import { getSiteUrl } from "@/lib/site-url";
 
 const CHUNK_SIZE = 5000;
 

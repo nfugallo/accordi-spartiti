@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { ArtistFilter } from "@/components/artist-filter";
 import { PageShell } from "@/components/page-shell";
 import { getArtistsByRegion, getRegions } from "@/lib/queries";
+import { buildRegionMetadata } from "@/lib/seo";
 
 type PageProps = {
   params: Promise<{ region: string }>;
@@ -23,11 +24,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     return { title: "Region not found" };
   }
 
-  return {
-    title: regionMeta.label,
-    description: `Browse ${regionMeta.artistCount.toLocaleString()} artists in ${regionMeta.label}.`,
-    alternates: { canonical: `/explore/${region}` },
-  };
+  return buildRegionMetadata(regionMeta.label, regionMeta.artistCount, region);
 }
 
 export default async function RegionExplorePage({ params }: PageProps) {

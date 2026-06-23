@@ -1,14 +1,11 @@
 import type { Metadata } from "next";
 import { getRegions } from "@/lib/queries";
+import { buildExploreMetadata } from "@/lib/seo";
 
 export async function generateMetadata(): Promise<Metadata> {
   const regions = await getRegions();
-  const total = regions.reduce((sum, r) => sum + r.artistCount, 0);
-  return {
-    title: "Explore",
-    description: `Browse ${total.toLocaleString()} artists across ${regions.length} regions.`,
-    alternates: { canonical: "/explore" },
-  };
+  const total = regions.reduce((sum, region) => sum + region.artistCount, 0);
+  return buildExploreMetadata(total, regions.length);
 }
 
 export { default } from "./explore-page";

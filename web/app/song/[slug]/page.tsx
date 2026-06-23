@@ -1,8 +1,10 @@
-import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/json-ld";
+import { SongGeoContent } from "@/components/song-geo-content";
 import { SongViewer } from "@/components/song-viewer";
 import { getRelatedSongs, getSongBySlug } from "@/lib/queries";
 import { buildSongJsonLd, buildSongMetadata } from "@/lib/seo";
+import type { Metadata } from "next";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -28,14 +30,12 @@ export default async function SongPage({ params }: PageProps) {
   }
 
   const relatedSongs = await getRelatedSongs(song.id, 5);
-  const jsonLd = buildSongJsonLd(song);
+  const jsonLd = buildSongJsonLd(song, relatedSongs);
 
   return (
     <>
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
+      <SongGeoContent song={song} />
       <SongViewer song={song} relatedSongs={relatedSongs} />
     </>
   );

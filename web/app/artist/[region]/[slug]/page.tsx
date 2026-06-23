@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import Link from "next/link";
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { JsonLd } from "@/components/json-ld";
 import { PageShell } from "@/components/page-shell";
 import { getArtistSongs } from "@/lib/queries";
-import { buildArtistMetadata } from "@/lib/seo";
+import { buildArtistJsonLd, buildArtistMetadata } from "@/lib/seo";
 
 type PageProps = {
   params: Promise<{ region: string; slug: string }>;
@@ -28,26 +29,31 @@ export default async function ArtistPage({ params }: PageProps) {
     notFound();
   }
 
+  const jsonLd = buildArtistJsonLd(artist.displayName, region, slug, artist.songs);
+
   return (
-    <PageShell>
-      <header className="mb-8 text-center sm:mb-10">
-        <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.displayName}</h1>
-        <p className="mt-2 text-sm capitalize text-muted-foreground">
-          {region.replace(/-/g, " ")} · {artist.songs.length} songs
-        </p>
-      </header>
-      <ul className="divide-y divide-border">
-        {artist.songs.map((song) => (
-          <li key={song.slug}>
-            <Link
-              href={`/song/${song.slug}`}
-              className="block py-3 text-sm transition-colors hover:text-muted-foreground"
-            >
-              {song.title}
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </PageShell>
+    <>
+      <JsonLd data={jsonLd} />
+      <PageShell>
+        <header className="mb-8 text-center sm:mb-10">
+          <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{artist.displayName}</h1>
+          <p className="mt-2 text-sm capitalize text-muted-foreground">
+            {region.replace(/-/g, " ")} · {artist.songs.length} songs
+          </p>
+        </header>
+        <ul className="divide-y divide-border">
+          {artist.songs.map((song) => (
+            <li key={song.slug}>
+              <Link
+                href={`/song/${song.slug}`}
+                className="block py-3 text-sm transition-colors hover:text-muted-foreground"
+              >
+                {song.title}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </PageShell>
+    </>
   );
 }

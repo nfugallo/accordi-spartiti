@@ -1,5 +1,6 @@
-import Link from "next/link";
 import type { Metadata } from "next";
+import Link from "next/link";
+import { JsonLd } from "@/components/json-ld";
 import { PageShell } from "@/components/page-shell";
 import { SiteLogo } from "@/components/site-logo";
 import { SITE_DESCRIPTION } from "@/lib/brand";
@@ -12,10 +13,7 @@ export default function HomePage() {
 
   return (
     <PageShell className="min-h-[calc(100dvh-8rem)] justify-center">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
-      />
+      <JsonLd data={jsonLd} />
       <div className="flex flex-col items-center text-center">
         <SiteLogo showTagline markSize={64} size="large" />
         <p className="mt-6 max-w-sm text-sm leading-relaxed text-muted-foreground sm:text-base">
