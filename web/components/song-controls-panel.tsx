@@ -2,8 +2,26 @@
 
 import { useSongPageRequired } from "./song-page-provider";
 
-function Divider() {
-  return <span className="mx-0.5 h-4 w-px shrink-0 bg-border/80" aria-hidden />;
+const MIN_AUTOSCROLL_SPEED = 0.25;
+const MAX_AUTOSCROLL_SPEED = 2;
+
+function ControlGroup({
+  label,
+  className = "",
+  children,
+}: {
+  label: string;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className={`flex items-center gap-1 rounded-full bg-background/45 px-2 py-1 ${className}`}>
+      <span className="shrink-0 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+        {label}
+      </span>
+      {children}
+    </div>
+  );
 }
 
 function IconButton({
@@ -46,10 +64,15 @@ export function SongControlsPanel() {
 
   const modeLabel =
     settings.displayMode === "both" ? "Both" : settings.displayMode === "chords" ? "Chords" : "Lyrics";
+  const autoscrollSpeed = Math.min(
+    MAX_AUTOSCROLL_SPEED,
+    Math.max(MIN_AUTOSCROLL_SPEED, settings.autoscrollSpeed),
+  );
+  const fontScaleLabel = `${Math.round(settings.fontScale * 100)}%`;
 
   return (
-    <div className="flex items-center gap-1 overflow-x-auto px-1 py-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-      <div className="flex shrink-0 items-center gap-0.5">
+    <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 px-1 py-0.5">
+      <ControlGroup label="Key">
         <IconButton label="Transpose down" onClick={() => setTranspose((t) => t - 1)}>
           −
         </IconButton>
@@ -60,44 +83,43 @@ export function SongControlsPanel() {
         <IconButton label="Transpose up" onClick={() => setTranspose((t) => t + 1)}>
           +
         </IconButton>
-      </div>
+      </ControlGroup>
 
-      <Divider />
+      <ControlGroup label="Capo">
+        <select
+          value={settings.capo}
+          onChange={(e) => setCapo(Number(e.target.value))}
+          aria-label="Capo fret"
+          title="Capo"
+          className="h-7 shrink-0 cursor-pointer rounded-full border-0 bg-transparent px-1 text-[11px] text-foreground outline-none"
+        >
+          {Array.from({ length: 12 }, (_, i) => (
+            <option key={i} value={i}>
+              {i}
+            </option>
+          ))}
+        </select>
+      </ControlGroup>
 
-      <select
-        value={settings.capo}
-        onChange={(e) => setCapo(Number(e.target.value))}
-        aria-label="Capo fret"
-        title="Capo"
-        className="h-7 shrink-0 cursor-pointer rounded-full border-0 bg-transparent px-1.5 text-[11px] text-foreground outline-none"
-      >
-        {Array.from({ length: 12 }, (_, i) => (
-          <option key={i} value={i}>
-            Capo {i}
-          </option>
-        ))}
-      </select>
-
-      <Divider />
-
-      <div className="flex shrink-0 items-center gap-0.5">
-        <IconButton label="Smaller text" onClick={() => setFontScale((s) => s - 0.05)}>
+      <ControlGroup label="Text">
+        <IconButton label="Smaller text" onClick={() => setFontScale((s) => s - 0.1)}>
           A−
         </IconButton>
-        <IconButton label="Larger text" onClick={() => setFontScale((s) => s + 0.05)}>
+        <span className="min-w-[2.25rem] text-center text-[11px] tabular-nums text-muted-foreground">
+          {fontScaleLabel}
+        </span>
+        <IconButton label="Larger text" onClick={() => setFontScale((s) => s + 0.1)}>
           A+
         </IconButton>
-      </div>
+      </ControlGroup>
 
-      <Divider />
+      <ControlGroup label="View">
+        <IconButton label="Toggle chords, lyrics, or both" onClick={cycleDisplayMode}>
+          {modeLabel}
+        </IconButton>
+      </ControlGroup>
 
-      <IconButton label="Toggle chords, lyrics, or both" onClick={cycleDisplayMode}>
-        {modeLabel}
-      </IconButton>
-
-      <Divider />
-
-      <div className="flex shrink-0 items-center gap-1.5">
+      <ControlGroup label="Scroll" className="basis-full justify-center min-[420px]:basis-auto">
         <IconButton
           label={autoscrollPlaying ? "Pause autoscroll" : "Start autoscroll"}
           onClick={() => setAutoscrollPlaying(!autoscrollPlaying)}
@@ -107,16 +129,19 @@ export function SongControlsPanel() {
         </IconButton>
         <input
           type="range"
-          min="0.5"
-          max="3"
-          step="0.1"
-          value={settings.autoscrollSpeed}
+          min={MIN_AUTOSCROLL_SPEED}
+          max={MAX_AUTOSCROLL_SPEED}
+          step="0.05"
+          value={autoscrollSpeed}
           onChange={(e) => setAutoscrollSpeed(Number(e.target.value))}
           aria-label="Autoscroll speed"
           title="Scroll speed"
-          className="h-1 w-14 shrink-0 accent-foreground"
+          className="h-1 w-28 shrink-0 accent-foreground"
         />
-      </div>
+        <span className="min-w-[2.25rem] text-[11px] tabular-nums text-muted-foreground">
+          {autoscrollSpeed.toFixed(2)}x
+        </span>
+      </ControlGroup>
     </div>
   );
 }

@@ -4,12 +4,22 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ChordSheet } from "./chord-sheet";
 import { PageShell } from "./page-shell";
+import { SheetFeedback } from "./sheet-feedback";
 import { SongPageProvider, useSongPageRequired } from "./song-page-provider";
 import { SongControlsPanel } from "./song-controls-panel";
 import { SongHeaderActions } from "./song-header-actions";
 import { useAutoscroll } from "@/hooks/use-autoscroll";
+import { useOfflineSongCache } from "@/hooks/use-offline-song-cache";
 import { transposeKeyLabel } from "@/lib/chord-transpose";
 import type { SongDetail, SongSummary } from "@/lib/types";
+
+function getAutoscrollPixelsPerSecond(speed: number): number {
+  const min = 0.25;
+  const max = 2;
+  const clamped = Math.min(max, Math.max(min, speed));
+  const progress = (clamped - min) / (max - min);
+  return 5 + Math.pow(progress, 1.7) * 35;
+}
 
 function SongArtwork({ title, artist }: { title: string; artist: string }) {
   const [url, setUrl] = useState<string | null>(null);
@@ -42,8 +52,8 @@ function SongArtwork({ title, artist }: { title: string; artist: string }) {
 
 function SongBottomControls() {
   return (
-    <div className="song-bottom-bar pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-4">
-      <div className="pointer-events-auto max-w-[min(100%,28rem)] rounded-full border border-white/25 bg-white/50 px-2 py-1 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.06] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]">
+    <div className="song-bottom-bar pointer-events-none fixed inset-x-0 bottom-[calc(4.75rem+env(safe-area-inset-bottom))] z-30 flex justify-center px-3">
+      <div className="pointer-events-auto w-full max-w-[23rem] rounded-3xl border border-white/25 bg-white/55 px-2 py-1.5 shadow-[0_8px_32px_rgba(0,0,0,0.08)] backdrop-blur-2xl backdrop-saturate-150 dark:border-white/10 dark:bg-white/[0.07] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)] sm:max-w-[30rem]">
         <SongControlsPanel />
       </div>
     </div>
@@ -52,7 +62,8 @@ function SongBottomControls() {
 
 function SongViewerInner() {
   const { song, relatedSongs, settings, autoscrollPlaying } = useSongPageRequired();
-  useAutoscroll(autoscrollPlaying, settings.autoscrollSpeed * 0.6);
+  useAutoscroll(autoscrollPlaying, getAutoscrollPixelsPerSecond(settings.autoscrollSpeed));
+  useOfflineSongCache(song.slug, song, relatedSongs);
 
   const effectiveTranspose = settings.transpose - settings.capo;
   const primaryArtist = song.artists[0]?.displayName ?? "";
@@ -62,7 +73,7 @@ function SongViewerInner() {
     .join(" / ");
 
   return (
-    <PageShell className="song-page pb-36">
+    <PageShell className="song-page pb-56 sm:pb-44">
       <header className="mb-10 text-center sm:mb-12">
         {primaryArtist && <SongArtwork title={song.title} artist={primaryArtist} />}
         <h1 className="text-2xl font-semibold tracking-tight sm:text-3xl">{song.title}</h1>
@@ -92,6 +103,8 @@ function SongViewerInner() {
         displayMode={settings.displayMode}
         fontScale={settings.fontScale}
       />
+
+      <SheetFeedback songSlug={song.slug} songTitle={song.title} sourceUrl={song.sourceUrl} />
 
       {relatedSongs.length > 0 && song.artists[0] && (
         <section className="mt-12 text-center">

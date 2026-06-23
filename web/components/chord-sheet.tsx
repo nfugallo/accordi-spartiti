@@ -23,7 +23,7 @@ function ChordLineRow({ rawLine, transpose }: { rawLine: string; transpose: numb
   );
 }
 
-function SheetBlock({ children }: { children: React.ReactNode }) {
+function SheetBlock({ children, fontScale }: { children: React.ReactNode; fontScale: number }) {
   const outerRef = useRef<HTMLDivElement>(null);
   const innerRef = useRef<HTMLDivElement>(null);
   const [fit, setFit] = useState({ scale: 1, height: 0 });
@@ -52,7 +52,7 @@ function SheetBlock({ children }: { children: React.ReactNode }) {
     observer.observe(outer);
     observer.observe(inner);
     return () => observer.disconnect();
-  }, [children]);
+  }, [children, fontScale]);
 
   return (
     <div
@@ -98,7 +98,7 @@ export function ChordSheet({
             </p>
           )}
           <div className="overflow-x-auto">
-            <SheetBlock>
+            <SheetBlock fontScale={fontScale}>
               {section.stanzas.map((stanza) => {
                 const key = `${stanza.sectionIndex}-${stanza.stanzaIndex}`;
 

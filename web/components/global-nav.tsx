@@ -36,7 +36,7 @@ function SearchIcon() {
 function HeartIcon({ active }: { active: boolean }) {
   return (
     <svg width={iconSize} height={iconSize} viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.7" aria-hidden>
-      <path d="M12 20.5 10.55 19.2C5.4 14.73 2 11.61 2 7.75 2 4.84 4.22 2.75 7.05 2.75c1.62 0 3.18.77 4.2 1.98.62.74 1.13 1.74 1.75 1.74s1.13-1 1.75-1.74C15.73 3.52 17.29 2.75 18.91 2.75 21.74 2.75 24 4.84 24 7.75c0 3.86-3.4 6.98-8.55 11.45L12 20.5Z" />
+      <path d="M12 20.5 10.55 19.2C5.4 14.73 2 11.61 2 7.75 2 4.84 4.22 2.75 7.05 2.75c1.62 0 3.18.77 4.95 2.26 1.77-1.49 3.33-2.26 4.95-2.26C19.78 2.75 22 4.84 22 7.75c0 3.86-3.4 6.98-8.55 11.45L12 20.5Z" />
     </svg>
   );
 }

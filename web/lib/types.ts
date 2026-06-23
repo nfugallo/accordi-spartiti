@@ -79,5 +79,5 @@ export const DEFAULT_SONG_SETTINGS: SongSettings = {
   capo: 0,
   fontScale: 1,
   displayMode: "both",
-  autoscrollSpeed: 1,
+  autoscrollSpeed: 0.8,
 };

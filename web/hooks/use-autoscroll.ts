@@ -24,12 +24,18 @@ export function useAutoscroll(playing: boolean, speed: number) {
     window.addEventListener("touchmove", onTouchMove, { passive: true });
 
     let lastTime = performance.now();
+    let pendingPixels = 0;
 
     const tick = (now: number) => {
       const delta = now - lastTime;
       lastTime = now;
       if (!userScrolledRef.current) {
-        window.scrollBy(0, (speed * delta) / 16);
+        pendingPixels += (speed * delta) / 1000;
+        const wholePixels = Math.trunc(pendingPixels);
+        if (wholePixels !== 0) {
+          window.scrollBy(0, wholePixels);
+          pendingPixels -= wholePixels;
+        }
       }
       timeoutRef.current = requestAnimationFrame(tick);
     };
