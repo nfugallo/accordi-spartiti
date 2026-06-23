@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { BottomNav } from "@/components/bottom-nav";
 import { CommandMenu } from "@/components/command-menu";
@@ -48,6 +49,7 @@ export default function RootLayout({
           <BottomNav />
           <CommandMenu />
         </Providers>
+        <Analytics />
       </body>
     </html>
   );
