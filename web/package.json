@@ -4,10 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "npm run build:search-index && next build",
+    "build": "npm run build:search-index && npm run build:static-data && next build",
     "start": "next start",
     "lint": "eslint",
-    "build:search-index": "tsx scripts/build-search-index.ts"
+    "build:search-index": "tsx scripts/build-search-index.ts",
+    "build:static-data": "tsx scripts/build-static-data.ts",
+    "debug:turso-cost": "tsx scripts/debug-turso-cost.ts"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",

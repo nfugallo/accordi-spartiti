@@ -8,3 +8,7 @@ web/node_modules/
 web/.next/
 web/.env.local
 web/public/search/
+web/generated/
+experiments/chord-sources/output/
+experiments/ug-scraper/.venv/
+experiments/ug-scraper/output/

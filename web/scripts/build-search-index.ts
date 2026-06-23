@@ -27,6 +27,13 @@ async function main() {
     authToken: process.env.TURSO_AUTH_TOKEN,
   });
 
+  console.log("Ensuring runtime query indexes...");
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_songs_slug ON songs(slug)");
+  await client.execute("CREATE INDEX IF NOT EXISTS idx_artists_region_slug ON artists(region, slug)");
+  await client.execute(
+    "CREATE INDEX IF NOT EXISTS idx_song_artists_artist_song ON song_artists(artist_id, song_id)",
+  );
+
   console.log("Dropping existing search_fts...");
   await client.execute("DROP TABLE IF EXISTS search_fts");
 

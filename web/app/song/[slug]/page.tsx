@@ -29,7 +29,7 @@ export default async function SongPage({ params }: PageProps) {
     notFound();
   }
 
-  const relatedSongs = await getRelatedSongs(song.id, 5);
+  const relatedSongs = await getRelatedSongs(song.id, 5, song.slug);
   const jsonLd = buildSongJsonLd(song, relatedSongs);
 
   return (

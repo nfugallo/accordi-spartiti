@@ -13,7 +13,7 @@ export async function GET(_request: Request, context: RouteContext) {
     return NextResponse.json({ error: "Song not found" }, { status: 404 });
   }
 
-  const relatedSongs = await getRelatedSongs(song.id, 5);
+  const relatedSongs = await getRelatedSongs(song.id, 5, slug);
   return NextResponse.json(
     { song, relatedSongs },
     {

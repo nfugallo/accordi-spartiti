@@ -134,7 +134,7 @@ export function searchCatalogLocal(
     .map((row) => row.result);
 }
 
-function shardIdsForQuery(query: string, manifest: SearchManifest): string[] {
+export function shardIdsForQuery(query: string, manifest: SearchManifest): string[] {
   if (manifest.shards.includes("all")) {
     return ["all"];
   }

@@ -35,6 +35,7 @@ export type SongDetail = {
   artists: ArtistRef[];
   keys: string[];
   sections: SongSection[];
+  ugEnrichment?: SongUgEnrichment | null;
 };
 
 export type SongSummary = {
@@ -72,6 +73,33 @@ export type SongSettings = {
   fontScale: number;
   displayMode: DisplayMode;
   autoscrollSpeed: number;
+};
+
+export type UgStrummingPattern = {
+  part: string;
+  bpm: number | null;
+  denominator: number | null;
+  display: string;
+};
+
+export type UgChordFingering = {
+  chord: string;
+  frets: string;
+};
+
+export type SongUgEnrichment = {
+  ugTabId: number;
+  ugUrl: string;
+  ugSongName: string;
+  ugArtistName: string;
+  matchConfidence: number;
+  tuning: string | null;
+  capo: number | null;
+  tonality: string | null;
+  difficulty: string | null;
+  strumming: UgStrummingPattern[];
+  chordFingerings: UgChordFingering[];
+  scrapedAt: string;
 };
 
 export const DEFAULT_SONG_SETTINGS: SongSettings = {
